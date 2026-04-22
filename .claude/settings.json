@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; case \"$f\" in */articles/*.md) prettier --write \"$f\" & npx --no-install textlint --fix \"$f\" & wait ;; esac; }",
+            "statusMessage": "Formatting .md (prettier + textlint in parallel)"
+          }
+        ]
+      }
+    ]
+  }
+}

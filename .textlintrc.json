@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "preset-ja-technical-writing": {
+      "sentence-length": false,
+      "max-comma": false,
+      "max-ten": false,
+      "max-kanji-continuous-len": false,
+      "no-exclamation-question-mark": false,
+      "ja-no-weak-phrase": false,
+      "ja-no-mixed-period": false,
+      "no-doubled-joshi": false,
+      "arabic-kanji-numbers": false,
+      "no-hankaku-kana": false
+    }
+  }
+}

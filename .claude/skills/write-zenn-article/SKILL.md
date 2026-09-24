@@ -32,13 +32,14 @@ type: user-invocable
 
 #### 2-1. Zenn API で上位5件を取得
 
-```
-WebFetch:
-  url: https://zenn.dev/api/articles?username=kkkxxx&order=liked_count
-  prompt: "Return top 5 articles as JSON with title, slug, liked_count sorted by liked_count desc."
+並べ替えと上位5件の切り出しは `jq` で確定的に行う:
+
+```bash
+curl -s 'https://zenn.dev/api/articles?username=kkkxxx&order=liked_count' \
+  | jq -r '.articles | sort_by(-.liked_count) | .[:5][] | "\(.liked_count)\t\(.slug)\t\(.title)"'
 ```
 
-失敗したら、以下の既知の上位5件をフォールバックとして使う（2026-04-19時点）:
+`curl` が使えない（権限で拒否されるなど）ときは、同じ URL を WebFetch で取得して `articles` の `slug`・`title`・`liked_count` を読む。どちらも失敗したら、以下の上位5件を使う。2026-04-19 時点のスナップショットなので、API で取れた順位があればそちらを優先する:
 
 | 順位 | slug | タイトル |
 |----|------|---------|
@@ -52,12 +53,12 @@ WebFetch:
 
 ```
 各 slug について:
-  Read: ~/repos/zenn/articles/{slug}.md
+  Read: articles/{slug}.md   # リポジトリ（worktree）ルートからの相対パス
 ```
 
 大きい記事もあるので、`Read` で必要なら複数回に分けて**全文**読む。Front Matterだけ読んで済ませない。
 
-`Read` の結果に `PARTIAL view — showing lines 1-N of M total` のような打ち切り警告（続きを `offset` 付きで読むよう促す system-reminder）が付いていたら、**次の記事に進む前に**その記事を `offset` 指定で最後まで読み切る。最上位の記事ほど後半に本題（検証・結果・まとめ）が来ることが多く、後半を落とすと文体・論理展開を模倣するというこのスキルの前提が崩れるため。
+`Read` の結果が途中までしか表示されていない（続きを `offset` 付きで読むよう促される）場合は、**次の記事に進む前に**その記事を `offset` 指定で最後まで読み切る。最上位の記事ほど後半に本題（検証・結果・まとめ）が来ることが多く、後半を落とすと文体・論理展開を模倣するというこのスキルの前提が崩れるため。
 
 #### 2-3. 5記事から以下を把握する（自分の頭の中で整理）
 
@@ -76,7 +77,7 @@ Phase 2 で読んだ5記事を **few-shot example** として、新規記事を�
 #### 文体・構成について
 
 - **固定テンプレに従わない**。Phase 2 で読んだ記事が第一の参考資料。このSKILL.mdに書かれていない癖があっても、記事から読み取ったパターンを優先する
-- **プレースホルダーだらけの骨組みで終わらせない**。実コード・実ターミナル出力・実データをできる限り書き込む。トピックに関する公式ドキュメントのURLが分かっているなら、引用文（英語なら意訳付き）を実際に書く
+- **プレースホルダーだらけの骨組みで終わらせない**。コードは実際に動かし、その出力をそのまま貼る。動かせなかったコードや計測していないベンチマークは、結果を作らず「未実行」と明記する。公式ドキュメントの引用は WebFetch で原文を取得してから書く（英語なら意訳付き）
 - **見出しは `##` から始める**。最上位を h2（`##`）、その下を `###`。サンプル記事が `#` 始まりでも真似ず `##` 始まりに統一する（アクセシビリティ方針。既存記事の `#` は format スキルが1段下げる対象）。階層の深さの感覚だけサンプルに合わせる
 - **「！」「絵文字」は模倣しつつ乱用しない**。ユーザーは適度に使う
 - **箇条書きはAI生成感を出さない**。1つのリストは3項目前後に絞り、括弧書きの多用・疑問文風の項目・不自然に形式を揃えた並びを避ける
@@ -95,15 +96,15 @@ published: false
 ---
 ```
 
-- **`publication_name` は書かない**。ユーザーは最近これを外す方針（個人記事として公開）。古い記事には残っているが、新規では不要
+- **`publication_name` は書かない**。個人記事として公開する方針のため。サンプル記事に残っていても真似ない
 - **`published_at` も基本的には書かない**（公開時に決める）。下書き段階では `published: false` のみ
 - **emoji は内容に合う1文字**。既存記事は 🚀 ⚡ ✏️ 😎 🥷 🤌 🤩 🤖 🔧 🪑 など多様。定型に縛られない
 
-#### 導入の3パターン（観察された型）
+#### 導入の型（例）
 
-どれかを採用する。トピックに合わせて選ぶ:
+過去記事で見られた導入の型。Phase 2 で読んだ記事の入り方を優先し、トピックに合うものを選ぶ:
 
-**A: 公式ブログ/ドキュメント引用型**（#3, #4, #5で使用）
+**A: 公式ブログ/ドキュメント引用型**
 
 ```markdown
 ## 導入
@@ -118,7 +119,7 @@ published: false
 {この記事を書こうと思った動機・疑問}
 ```
 
-**B: 問いかけ型**（#1で使用）
+**B: 問いかけ型**
 
 ```markdown
 ## 導入
@@ -127,7 +128,7 @@ published: false
 {自然な導線で本題へ}
 ```
 
-**C: 結論先出し型**（#5で使用）
+**C: 結論先出し型**
 
 ```markdown
 ## 導入
@@ -146,19 +147,9 @@ published: false
 
 ### Phase 4: zenn-cli で新規記事を作成
 
-**ファイル作成は `zenn-cli` スキルを使う**（`Skill` ツールで `zenn-cli` を起動、または同スキルの手順に従う）。自前で `npx zenn` を叩かず、バージョンチェック → `new:article` の流れをそのスキルに任せることで二重メンテを避ける。
+**ファイル作成は `zenn-cli` スキルに任せる**（`Skill` ツールで `zenn-cli` を起動し、バージョンチェック → `new:article --machine-readable` の手順に従う）。コマンドとオプションはそちらにだけ書いて二重メンテを避ける。カレントディレクトリのリポジトリ（worktree ならその worktree）で実行する。
 
-そのうえで、このスキルからは次を守る:
-
-```bash
-cd ~/repos/zenn
-# --machine-readable で、生成された articles/<slug>.md のパスだけを取得する
-CREATED=$(npx zenn new:article --title "<タイトル>" --type tech --emoji <絵文字> --machine-readable)
-```
-
-- `--slug` は付けない（自動生成に任せる。手書き・改名は禁止）
-- `$CREATED`（＝ `articles/<slug>.md`）を `Write` ツールで、生成した Front Matter + 本文で上書きする
-- `ls -t articles/*.md | head -1` で最新ファイルを推測する方法は取り違えの恐れがあるので使わない
+- `new:article` が返したパス（`articles/<slug>.md`）を `Write` ツールで、生成した Front Matter + 本文で上書きする
 
 ### Phase 5: 報告
 
@@ -175,8 +166,8 @@ CREATED=$(npx zenn new:article --title "<タイトル>" --type tech --emoji <絵
 | $ARGUMENTS が空 | AskUserQuestion |
 | 100文字超 | 短縮を提案 |
 | Zenn API失敗 | フォールバック5件を使う |
-| フォールバックのローカルファイルもない | `Glob: ~/repos/zenn/articles/*.md` して最大5件を読む |
-| `~/repos/zenn/articles/` がない | エラー表示、パス確認を促す |
+| フォールバックのローカルファイルもない | `Glob: articles/*.md` して最大5件を読む |
+| `articles/` がない | Zenn リポジトリの外で実行している。エラー表示、パス確認を促す |
 | zenn-cli失敗 | まず `zenn-cli` スキルのバージョンチェック/更新を試す。それでも失敗するなら手書き slug は避け、原因（パス・権限）をユーザーに報告して指示を仰ぐ |
 
 ## アンチパターン（やってはいけないこと）
